@@ -1,0 +1,10 @@
+.bundle/
+output/
+*.pdf
+.DS_Store
+*.log
+tmp/
+temp/
+node_modules/
+package-lock.json
+vendor/
