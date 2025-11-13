@@ -68,8 +68,12 @@ class Web2PDF
 
   def normalize_url(url)
     uri = Addressable::URI.parse(url)
-    uri.scheme ||= 'https'
-    uri.normalize.to_s
+    if uri.scheme.nil?
+      # Build URL with proper scheme format
+      "https://#{url}"
+    else
+      uri.to_s
+    end
   end
 
   def validate_url!
@@ -83,7 +87,7 @@ class Web2PDF
     robots_url = "#{URI(@base_url).scheme}://#{URI(@base_url).host}/robots.txt"
     
     begin
-      response = HTTParty.get(robots_url, timeout: 5, **@http_options)
+      response = HTTParty.get(robots_url, { timeout: 5 }.merge(@http_options))
       @robots = Robots.new(@base_url, response.body) if response.success?
     rescue
       @robots = nil
@@ -180,7 +184,8 @@ class Web2PDF
   end
 
   def should_crawl?(url)
-    return false unless url.start_with?(@base_url.split('/')[0..2].join('/'))
+    base_domain = "#{URI(@base_url).scheme}://#{URI(@base_url).host}"
+    return false unless url.start_with?(base_domain)
     return false if @robots && !@robots.allowed?(url)
     return false if options[:exclude_patterns].any? { |p| url.match?(p) }
     options[:include_patterns].any? { |p| url.match?(p) }

@@ -61,8 +61,12 @@ class Web2PDF
 
   def normalize_url(url)
     uri = Addressable::URI.parse(url)
-    uri.scheme ||= 'https'
-    uri.normalize.to_s
+    if uri.scheme.nil?
+      # Build URL with proper scheme format
+      "https://#{url}"
+    else
+      uri.to_s
+    end
   end
 
   def validate_url!
@@ -77,8 +81,8 @@ class Web2PDF
     robots_url = "#{URI(@base_url).scheme}://#{URI(@base_url).host}/robots.txt"
     
     begin
-      response = HTTParty.get(robots_url, timeout: 5, 
-        headers: { 'User-Agent' => options[:user_agent] })
+      response = HTTParty.get(robots_url, { timeout: 5, 
+        headers: { 'User-Agent' => options[:user_agent] } })
       @robots = Robots.new(@base_url, response.body) if response.success?
     rescue
       @robots = nil
@@ -144,7 +148,8 @@ class Web2PDF
   end
 
   def should_crawl?(url)
-    return false unless url.start_with?(@base_url.split('/')[0..2].join('/'))
+    base_domain = "#{URI(@base_url).scheme}://#{URI(@base_url).host}"
+    return false unless url.start_with?(base_domain)
     return false if @robots && !@robots.allowed?(url)
     return false if options[:exclude_patterns].any? { |p| url.match?(p) }
     options[:include_patterns].any? { |p| url.match?(p) }
@@ -229,7 +234,7 @@ end
 
 # CLI
 if __FILE__ == $0
-  if ARGV.empty?
+  if ARGV.empty? || ARGV[0] == '--help' || ARGV[0] == '-h'
     puts "Usage: #{$0} <url> [options]"
     puts "Options:"
     puts "  --output FILE     Output file (default: website.pdf)"
@@ -237,7 +242,8 @@ if __FILE__ == $0
     puts "  --concurrent N    Max concurrent (default: 6)"
     puts "  --delay SECONDS   Delay between requests (default: 0.2)"
     puts "  --verbose         Enable verbose logging"
-    exit 1
+    puts "  --help, -h        Show this help"
+    exit 0
   end
   
   url = ARGV[0]
